@@ -32,7 +32,7 @@ flowchart LR
     Docs --> Vector
     Hybrid --> Policy[Grounding and citation policy]
     Policy --> Providers[Provider registry]
-    Providers --> Models[OpenAI | Azure OpenAI | Anthropic | compatible]
+    Providers --> Models[OpenAI, Azure OpenAI, Anthropic, compatible]
     Models --> Verify[Citation verification]
     Verify --> Cache[Bounded response cache]
     Cache --> API
