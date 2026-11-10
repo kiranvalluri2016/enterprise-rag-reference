@@ -19,6 +19,8 @@ class ConfigurationTests(unittest.TestCase):
             "RAG_JWT_SECRET_NAME": "rag-jwt-secret",
             "RAG_ADMIN_TOKEN_SECRET_NAME": "rag-admin-token",
             "RAG_AUDIT_POSTGRES_DSN_SECRET_NAME": "rag-audit-postgres-dsn",
+            "RAG_JWT_ISSUER": "https://issuer.example",
+            "RAG_JWT_AUDIENCE": "enterprise-rag",
         }
         validate_runtime_configuration(environment)
         self.assertTrue(is_production(environment))

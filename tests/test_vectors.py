@@ -1,7 +1,7 @@
 import unittest
 
 from rag_reference.core import Passage
-from rag_reference.vectors import EmbeddingCache, HashEmbeddingProvider, HybridRetriever, InMemoryVectorStore
+from rag_reference.vectors import EmbeddingCache, HashEmbeddingProvider, HybridRetriever, InMemoryVectorStore, VectorRecord
 
 
 class VectorTests(unittest.TestCase):
@@ -34,3 +34,12 @@ class VectorTests(unittest.TestCase):
     def test_corpus_version_changes_when_document_content_changes(self):
         changed = [Passage("retries", "Reliability", "Retries need a different policy.")]
         self.assertNotEqual(self.retriever.corpus_version, HybridRetriever(changed, self.provider, InMemoryVectorStore()).corpus_version)
+
+    def test_same_chunk_id_is_isolated_by_tenant(self):
+        store = InMemoryVectorStore()
+        store.upsert([
+            VectorRecord("shared", "a", "Tenant A", "A", (1.0, 0.0), "tenant-a", "v1"),
+            VectorRecord("shared", "b", "Tenant B", "B", (1.0, 0.0), "tenant-b", "v1"),
+        ])
+        self.assertEqual(store.search([1.0, 0.0], "tenant-a", "v1", 1)[0]["doc_id"], "a")
+        self.assertEqual(store.search([1.0, 0.0], "tenant-b", "v1", 1)[0]["doc_id"], "b")

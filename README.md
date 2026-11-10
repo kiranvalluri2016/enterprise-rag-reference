@@ -11,7 +11,7 @@ An independently developed, production-oriented Python reference implementation 
 - Governed RAG orchestration with retrieval-first generation and abstention.
 - Hybrid retrieval: deterministic BM25 plus vector candidates fused using reciprocal-rank fusion.
 - Runtime-switchable LLM providers: OpenAI, Azure OpenAI, Anthropic, and OpenAI-compatible endpoints.
-- Citation verification: generated answers must cite retrieved source IDs or abstain.
+- Citation linkage verification: generated answers must cite retrieved source IDs or abstain; this is not claim-level factual verification.
 - Server-generated correlation IDs, safe structured errors, and component-level logs without request/document/secret leakage.
 - JWT authentication, role checks, tenant boundaries, rate limiting, circuit breaking, and protected provider routing.
 - Response and embedding caches with provider/model/corpus-aware isolation.
@@ -118,7 +118,7 @@ Implemented controls include:
 - Optional HS256 JWT validation with expiration, issuer, audience, tenant, and role claims.
 - Tenant-bound retrieval boundary, per-subject in-process rate limiting, and administrative capability checks.
 - Provider allowlist, dynamic routing audit event, circuit breaker, and bounded provider timeout.
-- Source-as-data prompt framing, citation-subset verification, and abstention on weak grounding.
+- Source-as-data prompt framing, citation-subset verification, and abstention on weak grounding. Citation linkage is not represented as claim-level factual verification.
 - Hash-chained audit ledger plus replay/tamper verification.
 - Azure Key Vault integration code using `DefaultAzureCredential`; secret values are never logged or returned.
 - Evaluation metrics and a release gate that always requires explicit human approval.

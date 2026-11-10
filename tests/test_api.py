@@ -147,13 +147,28 @@ class APITests(unittest.TestCase):
         search = orchestrator.retriever.search
         orchestrator.retriever.search = Mock(side_effect=RuntimeError("sensitive internal detail"))
         try:
-            status, headers, result = self.request("POST", "/query", json.dumps({"question": "retries"}))
+            with self.assertLogs("rag_reference", level="ERROR") as logs:
+                status, headers, result = self.request("POST", "/query", json.dumps({"question": "retries"}))
         finally:
             orchestrator.retriever.search = search
         self.assertEqual(status, 500)
         self.assertEqual(result["error"]["code"], "INTERNAL_ERROR")
         self.assertNotIn("sensitive internal detail", json.dumps(result))
+        self.assertNotIn("sensitive internal detail", "\n".join(logs.output))
         self.assertEqual(headers["X-Request-ID"], result["request_id"])
+
+    def test_client_disconnect_during_error_write_is_handled(self):
+        handler = self.server.RequestHandlerClass.__new__(self.server.RequestHandlerClass)
+        handler.request_id = "disconnect-test"
+        handler.response_status = None
+        handler.send_response = Mock()
+        handler.send_header = Mock()
+        handler.end_headers = Mock()
+        handler.wfile = Mock()
+        handler.wfile.write.side_effect = BrokenPipeError()
+        with self.assertLogs("rag_reference", level="WARNING") as logs:
+            handler._send_error_safely(500, "INTERNAL_ERROR", "safe")
+        self.assertIn("response_write_failed", "\n".join(logs.output))
 
     def test_request_log_does_not_include_question(self):
         secret = "do-not-log-this-question"

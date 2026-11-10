@@ -19,7 +19,7 @@ from .secrets import configured_secret_resolver
 from .security import AuditLedger, AuthenticationError, AuthorizationError, FixedWindowRateLimiter, JWTAuthenticator, Principal, postgres_audit_ledger
 from .vectors import HashEmbeddingProvider, HybridRetriever, InMemoryVectorStore
 
-DEFAULT_DOCS = Path(__file__).resolve().parents[2] / "sample_docs"
+DEFAULT_DOCS = Path("sample_docs")
 MAX_BODY_BYTES = 16_384
 DEFAULT_TOP_K = 3
 MIN_TOP_K = 1
@@ -80,8 +80,11 @@ def create_handler(orchestrator: Orchestrator, authenticator: JWTAuthenticator |
                 self._send_error_safely(error.status, error.code, error.message)
             except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
                 LOGGER.warning("response_write_failed request_id=%s", self.request_id)
-            except Exception:
-                LOGGER.exception("unexpected_server_exception request_id=%s", self.request_id)
+            except Exception as exc:
+                if os.environ.get("RAG_LOG_TRACEBACKS", "false").lower() == "true":
+                    LOGGER.exception("unexpected_server_exception request_id=%s exception_type=%s", self.request_id, type(exc).__name__)
+                else:
+                    LOGGER.error("unexpected_server_exception request_id=%s exception_type=%s", self.request_id, type(exc).__name__)
                 self._send_error_safely(500, "INTERNAL_ERROR", "An internal server error occurred")
             finally:
                 self._finish_request()
@@ -244,26 +247,33 @@ def create_handler(orchestrator: Orchestrator, authenticator: JWTAuthenticator |
 def main() -> None:
     configure_logging()
     validate_runtime_configuration()
-    docs = Path(os.environ.get("RAG_DOCS_DIR", str(DEFAULT_DOCS)))
+    docs = Path(os.environ.get("RAG_DOCS_DIR", str(DEFAULT_DOCS))).resolve()
     try:
         secrets = configured_secret_resolver()
         passages = load_documents(docs)
         retriever = HybridRetriever(passages, HashEmbeddingProvider(), InMemoryVectorStore())
         orchestrator = Orchestrator(retriever, configured_registry(secrets), ResponseCache())
-    except Exception:
-        LOGGER.exception("document_loading_failed directory=%s", docs)
+    except Exception as exc:
+        if os.environ.get("RAG_LOG_TRACEBACKS", "false").lower() == "true":
+            LOGGER.exception("document_loading_failed directory=%s exception_type=%s", docs, type(exc).__name__)
+        else:
+            LOGGER.error("document_loading_failed directory=%s exception_type=%s", docs, type(exc).__name__)
         raise
     host = os.environ.get("RAG_HOST", "127.0.0.1")
     port = int(os.environ.get("RAG_PORT", "8000"))
     LOGGER.info("documents_loaded count=%s directory=%s", len(passages), docs)
     LOGGER.info("server_starting host=%s port=%s", host, port)
     secret = secrets.get(os.environ.get("RAG_JWT_SECRET_NAME", "RAG_JWT_SECRET"))
-    authenticator = JWTAuthenticator(secret, os.environ.get("RAG_JWT_ISSUER"), os.environ.get("RAG_JWT_AUDIENCE")) if secret else None
+    production = is_production()
+    authenticator = JWTAuthenticator(
+        secret, os.environ.get("RAG_JWT_ISSUER"), os.environ.get("RAG_JWT_AUDIENCE"),
+        require_expiration=production, require_issuer_audience=production,
+    ) if secret else None
     limiter = FixedWindowRateLimiter(int(os.environ.get("RAG_RATE_LIMIT", "60")))
     audit_dsn = secrets.get(os.environ.get("RAG_AUDIT_POSTGRES_DSN_SECRET_NAME", "RAG_AUDIT_POSTGRES_DSN"))
     audit = postgres_audit_ledger(audit_dsn) if audit_dsn else AuditLedger()
     admin_token = secrets.get(os.environ.get("RAG_ADMIN_TOKEN_SECRET_NAME", "RAG_ADMIN_TOKEN"))
-    ThreadingHTTPServer((host, port), create_handler(orchestrator, authenticator, limiter, audit, admin_token, is_production())).serve_forever()
+    ThreadingHTTPServer((host, port), create_handler(orchestrator, authenticator, limiter, audit, admin_token, production)).serve_forever()
 
 
 if __name__ == "__main__":

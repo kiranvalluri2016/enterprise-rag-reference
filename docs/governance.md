@@ -22,6 +22,8 @@ Before a provider/model/corpus release: record the provider/model version, corpu
 
 `GroundedEvaluator` emits reproducible grounded-rate and citation precision/recall metrics. `release_decision` remains fail-closed: passing metrics yields `HUMAN_REVIEW_REQUIRED`, not automatic promotion.
 
+Citation-subset verification proves that an answer references retrieved source IDs; it does not establish that each generated claim is factually entailed by the cited source. Claim-level grounding evaluation is a separate release gate.
+
 ## Incident response
 
 Disable the provider route, preserve sanitized audit correlation IDs, rotate affected credentials through the secret manager, assess source/corpus exposure, and require a reviewed re-enable decision. Do not use application logs as a substitute for durable audit retention.

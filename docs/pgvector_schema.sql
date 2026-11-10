@@ -2,7 +2,7 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE TABLE rag_chunks (
-    chunk_id TEXT PRIMARY KEY,
+    chunk_id TEXT NOT NULL,
     doc_id TEXT NOT NULL,
     title TEXT NOT NULL,
     content TEXT NOT NULL,
@@ -12,7 +12,8 @@ CREATE TABLE rag_chunks (
     embedding vector(64) NOT NULL,
     deleted_at TIMESTAMPTZ NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (tenant_id, chunk_id)
 );
 
 CREATE INDEX rag_chunks_tenant_corpus_active_idx

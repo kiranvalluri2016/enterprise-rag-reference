@@ -36,12 +36,16 @@ class Principal:
 class JWTAuthenticator:
     """HS256 JWT verifier. Production callers should source the secret from a vault."""
 
-    def __init__(self, secret: str, issuer: str | None = None, audience: str | None = None) -> None:
+    def __init__(self, secret: str, issuer: str | None = None, audience: str | None = None,
+                 require_expiration: bool = False, require_issuer_audience: bool = False) -> None:
         if len(secret) < 32:
             raise ValueError("JWT secret must be at least 32 characters")
+        if require_issuer_audience and (not issuer or not audience):
+            raise ValueError("Issuer and audience are required for strict JWT validation")
         self.secret = secret.encode()
         self.issuer = issuer
         self.audience = audience
+        self.require_expiration = require_expiration
 
     def authenticate(self, authorization: str | None) -> Principal:
         if not authorization or not authorization.startswith("Bearer "):
@@ -64,6 +68,8 @@ class JWTAuthenticator:
             LOGGER.warning("authentication_rejected reason=signature")
             raise AuthenticationError("Invalid bearer token")
         now = time.time()
+        if self.require_expiration and "exp" not in claims:
+            raise AuthenticationError("Bearer token expiration is required")
         for field, comparison in (("exp", lambda value: now >= value), ("nbf", lambda value: now < value)):
             value = claims.get(field)
             if value is not None:

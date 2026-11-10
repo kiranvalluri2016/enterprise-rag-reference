@@ -80,12 +80,12 @@ class InMemoryVectorStore:
     """Deterministic development store; not a substitute for a durable vector DB."""
 
     def __init__(self) -> None:
-        self._records: dict[str, VectorRecord] = {}
+        self._records: dict[tuple[str, str], VectorRecord] = {}
         self._lock = threading.RLock()
 
     def upsert(self, records: list[VectorRecord]) -> None:
         with self._lock:
-            self._records.update({record.chunk_id: record for record in records})
+            self._records.update({(record.tenant_id, record.chunk_id): record for record in records})
         LOGGER.info("vector_records_upserted count=%s", len(records))
 
     def search(self, embedding: list[float], tenant_id: str, corpus_version: str, top_k: int) -> list[dict]:
@@ -162,8 +162,8 @@ class PgVectorStore:
             cursor.executemany(
                 """INSERT INTO rag_chunks (chunk_id, doc_id, title, content, tenant_id, corpus_version, embedding_model, embedding)
                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s::vector)
-                   ON CONFLICT (chunk_id) DO UPDATE SET title = EXCLUDED.title, content = EXCLUDED.content,
-                   tenant_id = EXCLUDED.tenant_id, corpus_version = EXCLUDED.corpus_version,
+                   ON CONFLICT (tenant_id, chunk_id) DO UPDATE SET title = EXCLUDED.title, content = EXCLUDED.content,
+                   corpus_version = EXCLUDED.corpus_version,
                    embedding_model = EXCLUDED.embedding_model, embedding = EXCLUDED.embedding""",
                 [(record.chunk_id, record.doc_id, record.title, record.text, record.tenant_id, record.corpus_version,
                   "configured-at-deployment", "[" + ",".join(map(str, record.embedding)) + "]") for record in records],

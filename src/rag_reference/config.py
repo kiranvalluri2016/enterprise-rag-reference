@@ -23,6 +23,8 @@ def validate_runtime_configuration(environment: dict[str, str] | None = None) ->
         "RAG_JWT_SECRET_NAME",
         "RAG_ADMIN_TOKEN_SECRET_NAME",
         "RAG_AUDIT_POSTGRES_DSN_SECRET_NAME",
+        "RAG_JWT_ISSUER",
+        "RAG_JWT_AUDIENCE",
     )
     missing = [name for name in required if not environment.get(name)]
     if missing:

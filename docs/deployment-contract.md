@@ -6,8 +6,12 @@
 - `RAG_JWT_SECRET_NAME`
 - `RAG_ADMIN_TOKEN_SECRET_NAME`
 - `RAG_AUDIT_POSTGRES_DSN_SECRET_NAME`
+- `RAG_JWT_ISSUER`
+- `RAG_JWT_AUDIENCE`
 
 The workload identity needs only Key Vault secret-read access. The PostgreSQL runtime identity needs the least privileges described in `audit_schema.sql` and the pgvector migration; use a transaction-mode connection pool.
+
+Production JWT validation requires a signed HS256 token with `exp`, the configured issuer, and the configured audience. Tokens missing any of these constraints are rejected.
 
 Endpoints:
 

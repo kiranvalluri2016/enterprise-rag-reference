@@ -166,7 +166,14 @@ class HTTPJSONProvider:
 
     def _text(self, data: dict) -> str:
         if self.kind == "openai-responses":
-            return str(data.get("output_text", ""))
+            output_text = data.get("output_text")
+            if isinstance(output_text, str) and output_text:
+                return output_text
+            return "".join(
+                str(content.get("text", ""))
+                for item in data.get("output", []) if isinstance(item, dict) and item.get("type") == "message"
+                for content in item.get("content", []) if isinstance(content, dict) and content.get("type") in {"output_text", "text"}
+            )
         if self.kind == "anthropic-messages":
             return "".join(str(item.get("text", "")) for item in data.get("content", []) if item.get("type") == "text")
         return str(data.get("choices", [{}])[0].get("message", {}).get("content", ""))

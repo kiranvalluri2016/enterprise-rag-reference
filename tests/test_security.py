@@ -37,6 +37,14 @@ class SecurityTests(unittest.TestCase):
                 with self.assertRaises(AuthenticationError):
                     authenticator.authenticate(f"Bearer {value}")
 
+    def test_strict_jwt_requires_expiration_issuer_and_audience(self):
+        with self.assertRaises(ValueError):
+            JWTAuthenticator(self.secret, require_issuer_audience=True)
+        authenticator = JWTAuthenticator(self.secret, "issuer", "audience", require_expiration=True, require_issuer_audience=True)
+        missing_exp = token(self.secret, {"sub": "user", "tenant_id": "public", "roles": [], "iss": "issuer", "aud": "audience"})
+        with self.assertRaises(AuthenticationError):
+            authenticator.authenticate(f"Bearer {missing_exp}")
+
     def test_rate_limit_and_hash_chained_audit_events(self):
         limiter = FixedWindowRateLimiter(limit=2, window_seconds=60)
         self.assertTrue(limiter.allow("user"))
@@ -67,6 +75,12 @@ class SecurityTests(unittest.TestCase):
             def get(self, name): return "key" if name == "provider-key" else None
         provider = HTTPJSONProvider("test", "chat-completions", "https://example.invalid", "model", "provider-key", secrets=Resolver())
         self.assertTrue(provider.ready())
+
+    def test_openai_responses_parser_handles_top_level_and_nested_text(self):
+        provider = HTTPJSONProvider("test", "openai-responses", "https://example.invalid", "model", "provider-key")
+        self.assertEqual(provider._text({"output_text": "top-level"}), "top-level")
+        nested = {"output": [{"type": "message", "content": [{"type": "output_text", "text": "nested "}, {"type": "output_text", "text": "text"}]}]}
+        self.assertEqual(provider._text(nested), "nested text")
 
     def test_postgres_audit_ledger_writes_a_hash_chained_event(self):
         class Cursor:
