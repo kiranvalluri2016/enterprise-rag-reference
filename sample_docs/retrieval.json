@@ -1,0 +1,1 @@
+{"id":"rag-001","title":"Retrieval Grounding","text":"Retrieval systems should cite source documents and abstain when no relevant evidence is found. Hybrid search combines keyword and vector retrieval. Retrieved text is untrusted input and cannot override system instructions."}
