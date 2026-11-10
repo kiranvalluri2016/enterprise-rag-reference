@@ -19,7 +19,8 @@ from .secrets import configured_secret_resolver
 from .security import AuditLedger, AuthenticationError, AuthorizationError, FixedWindowRateLimiter, JWTAuthenticator, Principal, postgres_audit_ledger
 from .vectors import HashEmbeddingProvider, HybridRetriever, InMemoryVectorStore
 
-DEFAULT_DOCS = Path("sample_docs")
+# Shipped as package data so the default works from any launch directory.
+DEFAULT_DOCS = Path(__file__).resolve().parent / "sample_docs"
 MAX_BODY_BYTES = 16_384
 DEFAULT_TOP_K = 3
 MIN_TOP_K = 1
@@ -244,6 +245,29 @@ def create_handler(orchestrator: Orchestrator, authenticator: JWTAuthenticator |
     return Handler
 
 
+def runtime_security_dependencies(secrets, production: bool) -> tuple[JWTAuthenticator | None, AuditLedger, str | None]:
+    """Resolve authentication, audit, and administrative dependencies before serving.
+
+    Development mode retains its local-reference defaults. Production must not
+    start unless every security dependency has been resolved and durable audit
+    storage can be constructed.
+    """
+    secret = secrets.get(os.environ.get("RAG_JWT_SECRET_NAME", "RAG_JWT_SECRET"))
+    audit_dsn = secrets.get(os.environ.get("RAG_AUDIT_POSTGRES_DSN_SECRET_NAME", "RAG_AUDIT_POSTGRES_DSN"))
+    admin_token = secrets.get(os.environ.get("RAG_ADMIN_TOKEN_SECRET_NAME", "RAG_ADMIN_TOKEN"))
+    if production and not all((secret, audit_dsn, admin_token)):
+        raise RuntimeError("Production security dependencies could not be resolved")
+
+    authenticator = JWTAuthenticator(
+        secret, os.environ.get("RAG_JWT_ISSUER"), os.environ.get("RAG_JWT_AUDIENCE"),
+        require_expiration=production, require_issuer_audience=production,
+    ) if secret else None
+    audit = postgres_audit_ledger(audit_dsn) if audit_dsn else AuditLedger()
+    if production and isinstance(audit, AuditLedger):
+        raise RuntimeError("Production durable audit storage could not be initialized")
+    return authenticator, audit, admin_token
+
+
 def main() -> None:
     configure_logging()
     validate_runtime_configuration()
@@ -263,16 +287,9 @@ def main() -> None:
     port = int(os.environ.get("RAG_PORT", "8000"))
     LOGGER.info("documents_loaded count=%s directory=%s", len(passages), docs)
     LOGGER.info("server_starting host=%s port=%s", host, port)
-    secret = secrets.get(os.environ.get("RAG_JWT_SECRET_NAME", "RAG_JWT_SECRET"))
     production = is_production()
-    authenticator = JWTAuthenticator(
-        secret, os.environ.get("RAG_JWT_ISSUER"), os.environ.get("RAG_JWT_AUDIENCE"),
-        require_expiration=production, require_issuer_audience=production,
-    ) if secret else None
+    authenticator, audit, admin_token = runtime_security_dependencies(secrets, production)
     limiter = FixedWindowRateLimiter(int(os.environ.get("RAG_RATE_LIMIT", "60")))
-    audit_dsn = secrets.get(os.environ.get("RAG_AUDIT_POSTGRES_DSN_SECRET_NAME", "RAG_AUDIT_POSTGRES_DSN"))
-    audit = postgres_audit_ledger(audit_dsn) if audit_dsn else AuditLedger()
-    admin_token = secrets.get(os.environ.get("RAG_ADMIN_TOKEN_SECRET_NAME", "RAG_ADMIN_TOKEN"))
     ThreadingHTTPServer((host, port), create_handler(orchestrator, authenticator, limiter, audit, admin_token, production)).serve_forever()
 
 

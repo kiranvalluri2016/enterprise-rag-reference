@@ -1,0 +1,1 @@
+{"id":"arch-001","title":"Architecture Review","text":"Architecture reviews should document component responsibilities, trust boundaries, failure modes, data flow, operational ownership, and trade-offs. Critical changes require explicit review and evidence."}

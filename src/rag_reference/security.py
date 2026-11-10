@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import hmac
 import json
@@ -60,10 +61,7 @@ class JWTAuthenticator:
         if header.get("alg") != "HS256":
             raise AuthenticationError("Unsupported token algorithm")
         expected = hmac.new(self.secret, f"{parts[0]}.{parts[1]}".encode(), hashlib.sha256).digest()
-        try:
-            signature = self._decode_bytes(parts[2])
-        except ValueError as exc:
-            raise AuthenticationError("Malformed bearer token") from exc
+        signature = self._decode_bytes(parts[2])
         if not hmac.compare_digest(expected, signature):
             LOGGER.warning("authentication_rejected reason=signature")
             raise AuthenticationError("Invalid bearer token")
@@ -103,7 +101,10 @@ class JWTAuthenticator:
 
     @staticmethod
     def _decode_bytes(segment: str) -> bytes:
-        return base64.urlsafe_b64decode(segment + "=" * (-len(segment) % 4))
+        try:
+            return base64.urlsafe_b64decode(segment + "=" * (-len(segment) % 4))
+        except (binascii.Error, ValueError) as exc:
+            raise AuthenticationError("Malformed bearer token") from exc
 
 
 class FixedWindowRateLimiter:

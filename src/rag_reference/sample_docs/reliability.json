@@ -1,0 +1,1 @@
+{"id":"ops-001","title":"Background Job Reliability","text":"Background workers should use idempotency keys, bounded retries, dead-letter queues, durable state, and observable correlation identifiers. An acknowledgement should follow durable completion."}

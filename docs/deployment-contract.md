@@ -11,6 +11,8 @@
 
 The workload identity needs only Key Vault secret-read access. The PostgreSQL runtime identity needs the least privileges described in `audit_schema.sql` and the pgvector migration; use a transaction-mode connection pool.
 
+At startup, production resolves all three named secret values. A missing JWT secret, administrative token, PostgreSQL audit DSN, or durable audit initialization failure aborts the process before it binds an HTTP listener. It does not fall back to anonymous access or an in-process audit ledger.
+
 Production JWT validation requires a signed HS256 token with `exp`, the configured issuer, and the configured audience. Tokens missing any of these constraints are rejected.
 
 Endpoints:

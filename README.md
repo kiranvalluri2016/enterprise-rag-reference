@@ -145,7 +145,7 @@ curl http://127.0.0.1:8000/health
 
 ## Production configuration contract
 
-Set `RAG_ENV=production` to enable fail-closed configuration checks. Production requires an Azure Key Vault URL and named secrets for JWT, administrative routing, and PostgreSQL audit storage. Install optional integrations as needed:
+Set `RAG_ENV=production` to enable fail-closed configuration checks. Production requires an Azure Key Vault URL and named secrets for JWT, administrative routing, and PostgreSQL audit storage. Startup aborts if any of those values cannot be resolved or durable audit initialization fails; it never serves anonymous requests in production. Install optional integrations as needed:
 
 ```bash
 python -m pip install -e '.[azure,postgres]'

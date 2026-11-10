@@ -45,6 +45,11 @@ class SecurityTests(unittest.TestCase):
         with self.assertRaises(AuthenticationError):
             authenticator.authenticate(f"Bearer {missing_exp}")
 
+    def test_jwt_malformed_base64_is_an_authentication_error(self):
+        authenticator = JWTAuthenticator(self.secret)
+        with self.assertRaises(AuthenticationError):
+            authenticator.authenticate("Bearer a.e30.signature")
+
     def test_rate_limit_and_hash_chained_audit_events(self):
         limiter = FixedWindowRateLimiter(limit=2, window_seconds=60)
         self.assertTrue(limiter.allow("user"))

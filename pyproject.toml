@@ -14,3 +14,6 @@ postgres = ["psycopg[binary,pool]>=3.2,<4"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+rag_reference = ["sample_docs/*.json"]

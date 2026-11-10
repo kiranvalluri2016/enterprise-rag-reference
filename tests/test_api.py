@@ -1,13 +1,16 @@
 import http.client
 import json
 import socket
+import subprocess
+import sys
+import tempfile
 import threading
 import unittest
 import os
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from http.server import ThreadingHTTPServer
 
-from rag_reference.api import create_handler
+from rag_reference.api import DEFAULT_DOCS, create_handler, runtime_security_dependencies
 from rag_reference.core import Passage, Retriever
 from rag_reference.orchestration import Orchestrator
 from rag_reference.providers import GenerationResult, ProviderRegistry
@@ -176,6 +179,62 @@ class APITests(unittest.TestCase):
             status, _, _ = self.request("POST", "/query", json.dumps({"question": secret}))
         self.assertEqual(status, 200)
         self.assertNotIn(secret, "\n".join(logs.output))
+
+    def test_packaged_default_documents_load_outside_repository_root(self):
+        script = (
+            "from rag_reference.api import DEFAULT_DOCS; "
+            "from rag_reference.core import load_documents; "
+            "assert len(load_documents(DEFAULT_DOCS)) == 3"
+        )
+        with tempfile.TemporaryDirectory() as working_directory:
+            result = subprocess.run(
+                [sys.executable, "-c", script], cwd=working_directory,
+                capture_output=True, text=True, check=False,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(DEFAULT_DOCS.is_absolute())
+
+    def test_production_startup_rejects_unresolved_security_dependencies(self):
+        class Resolver:
+            def __init__(self, values):
+                self.values = values
+
+            def get(self, name):
+                return self.values.get(name)
+
+        names = {
+            "RAG_JWT_SECRET_NAME": "jwt",
+            "RAG_AUDIT_POSTGRES_DSN_SECRET_NAME": "audit",
+            "RAG_ADMIN_TOKEN_SECRET_NAME": "admin",
+            "RAG_JWT_ISSUER": "issuer",
+            "RAG_JWT_AUDIENCE": "audience",
+        }
+        with patch.dict(os.environ, names, clear=False):
+            for missing in ("jwt", "audit", "admin"):
+                with self.subTest(missing=missing):
+                    values = {"jwt": "a" * 32, "audit": "postgresql://example", "admin": "token"}
+                    values.pop(missing)
+                    with self.assertRaises(RuntimeError):
+                        runtime_security_dependencies(Resolver(values), production=True)
+
+    def test_production_startup_initializes_authentication_and_durable_audit(self):
+        class Resolver:
+            def get(self, name):
+                return {"jwt": "a" * 32, "audit": "postgresql://example", "admin": "token"}.get(name)
+
+        names = {
+            "RAG_JWT_SECRET_NAME": "jwt",
+            "RAG_AUDIT_POSTGRES_DSN_SECRET_NAME": "audit",
+            "RAG_ADMIN_TOKEN_SECRET_NAME": "admin",
+            "RAG_JWT_ISSUER": "issuer",
+            "RAG_JWT_AUDIENCE": "audience",
+        }
+        durable_audit = Mock()
+        with patch.dict(os.environ, names, clear=False), patch("rag_reference.api.postgres_audit_ledger", return_value=durable_audit):
+            authenticator, audit, admin_token = runtime_security_dependencies(Resolver(), production=True)
+        self.assertIsNotNone(authenticator)
+        self.assertIs(audit, durable_audit)
+        self.assertEqual(admin_token, "token")
 
 
 if __name__ == "__main__":
