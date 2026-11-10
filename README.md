@@ -1,7 +1,5 @@
 # Enterprise RAG Reference
 
-[![CI](https://github.com/kiranvalluri2016/enterprise-rag-reference/actions/workflows/ci.yml/badge.svg)](https://github.com/kiranvalluri2016/enterprise-rag-reference/actions/workflows/ci.yml)
-
 An independently developed, production-oriented Python reference implementation for governed Retrieval-Augmented Generation (RAG). It demonstrates a complete service boundary: hybrid retrieval, grounded generation, dynamic multi-provider routing, tenant-aware data boundaries, security controls, audit contracts, evaluation gates, and reproducible tests.
 
 > This repository is an architecture and engineering reference, not a production-certification claim. It contains no credentials, customer data, cloud resources, or live-provider configuration.
@@ -157,7 +155,7 @@ Production deployment details, required secret-name configuration, readiness beh
 
 Logs provide timestamps, route/method/status/duration, request IDs, provider/routing events, cache activity, retrieval counts, authentication outcomes, and audit append/verification results. They intentionally exclude questions, documents, authorization headers, JWTs, API keys, secrets, and embeddings.
 
-The CI workflow runs tests, package verification, and SBOM generation. The release workflow is human-gated: [evaluation.py](src/rag_reference/evaluation.py) computes grounded-answer rate and citation precision/recall; passing thresholds results in `HUMAN_REVIEW_REQUIRED`, not auto-promotion.
+This public reference intentionally ships without executable GitHub Actions workflows. Local verification runs the test suite, package checks, and SBOM generation in a controlled development environment. The release decision remains human-gated: [evaluation.py](src/rag_reference/evaluation.py) computes grounded-answer rate and citation precision/recall; passing thresholds results in `HUMAN_REVIEW_REQUIRED`, not auto-promotion.
 
 ## Deployment and verification boundaries
 
