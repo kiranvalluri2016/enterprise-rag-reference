@@ -14,7 +14,7 @@ An independently developed, production-oriented Python reference implementation 
 - JWT authentication, role checks, tenant boundaries, rate limiting, circuit breaking, and protected provider routing.
 - Response and embedding caches with provider/model/corpus-aware isolation.
 - Optional Azure Key Vault secret resolution and PostgreSQL-backed append-only audit persistence.
-- pgvector schema, tenant RLS contract, soft-deletion capability, Docker packaging, CI, SBOM generation, and governance/evaluation artifacts.
+- pgvector schema, tenant RLS contract, soft-deletion capability, Docker packaging, SBOM generation, and governance/evaluation artifacts.
 
 ## Architecture
 
